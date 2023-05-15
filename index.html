@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <title>rtsp2flv</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://cdn.bootcdn.net/ajax/libs/flv.js/1.5.0/flv.min.js"></script>
+</head>
+
+<body>
+    <video id="myVideo" width="640" height="360" controls autoplay></video>
+    <div>
+        <button onclick="start()">开始播放</button>
+        <button onclick="stop()">停止播放</button>
+    </div>
+    <script>
+        const rtspUrl = 'rtsp://admin:jn123456@192.168.1.64:554'
+        //  FLV 播放器实例
+        var flvPlayer = null
+
+        // 开始播放视频
+        function start() {
+            // 创建
+            flvPlayer = flvjs.createPlayer({
+                // 创建
+                type: 'flv',
+                url: 'http://localhost:8000/stream?url=' + rtspUrl,
+            })
+            // 将 FLV 播放器与 video 标签绑定
+            flvPlayer.attachMediaElement(document.getElementById('myVideo'))
+            // 开始播放视频
+            flvPlayer.load()
+            flvPlayer.play()
+        }
+
+        // 页面关闭时，停止播放视频
+        function stop() {
+            flvPlayer.unload()
+            flvPlayer.detachMediaElement()
+            flvPlayer.destroy()
+        }
+    </script>
+</body>
+
+</html>

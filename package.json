@@ -1,0 +1,17 @@
+{
+  "name": "rtsp2flv",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node index.js"
+  },
+  "author": "AnthonyJu",
+  "license": "MIT",
+  "devDependencies": {
+    "express": "^4.17.1",
+    "ffmpeg": "0.0.4",
+    "fluent-ffmpeg": "^2.1.2",
+    "http": "0.0.0"
+  }
+}
