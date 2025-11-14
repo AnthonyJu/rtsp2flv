@@ -7,12 +7,12 @@ app.use(express.static(__dirname))
 // 多路流管理
 const streams = {
   cam1: {
-    rtsp: 'rtsp://admin:jn123456@192.168.1.194:554/h264/ch1/main/av_stream',
+    rtsp: '',
     clients: [],
     ffmpeg: null
   },
   cam2: {
-    rtsp: 'rtsp://admin:Xchangtu..2018@192.168.1.52:554/LiveMedia/ch1/Media1',
+    rtsp: '',
     clients: [],
     ffmpeg: null
   }
