@@ -1,47 +1,105 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
 
-<head>
-    <meta charset="utf-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <title>rtsp2flv</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <script src="https://cdn.bootcdn.net/ajax/libs/flv.js/1.5.0/flv.min.js"></script>
-</head>
-
-<body>
-    <video id="myVideo" width="640" height="360" controls autoplay></video>
-    <div>
-        <button onclick="start()">开始播放</button>
-        <button onclick="stop()">停止播放</button>
-    </div>
+    <!-- Import style -->
+    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css" />
+    <!-- Import Vue 3 -->
+    <script src="https://unpkg.com/vue@3"></script>
+    <!-- Import component library -->
+    <script src="https://unpkg.com/element-plus"></script>
+    <!-- Import unocss -->
     <script>
-        const rtspUrl = 'rtsp://admin:jn123456@192.168.1.64:554'
-        //  FLV 播放器实例
-        var flvPlayer = null
+      window.__unocss = {
+        shortcuts: {
+          'full': 'w-full h-full',
+          'flex-col': 'flex flex-col',
+          'flex-items': 'flex items-center',
+          'flex-b-c': 'flex justify-between items-center',
+          'flex-center': 'flex justify-center items-center',
+          'flex-col-center': 'flex flex-col justify-center items-center',
+          'border-default': 'border border-solid',
+        },
+      }
+    </script>
+    <script src="https://unpkg.com/@unocss/runtime"></script>
+    <!-- Import flv.js -->
+    <script src="https://cdn.bootcdn.net/ajax/libs/flv.js/1.5.0/flv.min.js"></script>
+  </head>
 
-        // 开始播放视频
-        function start() {
+  <body>
+    <div id="app">
+      <div class="flex-col gap-10px">
+        <video id="myVideo" width="640" height="360" controls autoplay></video>
+        <el-input class="w-500px!" v-model="url"></el-input>
+        <div>
+          <el-button type="primary" @click="start">开始播放</el-button>
+          <el-button type="danger" @click="stop">停止播放</el-button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const { createApp, ref } = Vue
+      const { ElMessage } = ElementPlus
+
+      const App = {
+        setup() {
+          // 视频流地址
+          const url = ref('rtsp://admin:jn123456@192.168.1.194:554/h264/ch1/main/av_stream')
+          //   const url = ref('rtsp://admin:Xchangtu..2018@192.168.1.52:554/LiveMedia/ch1/Media1')
+
+          //  FLV 播放器实例
+          let flvPlayer = null
+
+          // 开始播放视频
+          function start() {
             // 创建
             flvPlayer = flvjs.createPlayer({
-                // 创建
-                type: 'flv',
-                url: 'http://localhost:8000/stream?url=' + rtspUrl,
+              type: 'flv',
+              url: '/stream?url=' + encodeURIComponent(url.value),
+              isLive: true,
+              cors: true,
+              lazyLoad: false,
+              enableStashBuffer: false,
+              autoCleanupSourceBuffer: true,
             })
+
             // 将 FLV 播放器与 video 标签绑定
             flvPlayer.attachMediaElement(document.getElementById('myVideo'))
+
             // 开始播放视频
             flvPlayer.load()
             flvPlayer.play()
-        }
 
-        // 页面关闭时，停止播放视频
-        function stop() {
+            // 监听错误事件
+            flvPlayer.on(flvjs.Events.ERROR, (errType, errDetail, errInfo) => {
+              console.log('errInfo', errType, errDetail, errInfo)
+              stop()
+              ElMessage.error('播放错误')
+            })
+          }
+
+          // 页面关闭时，停止播放视频
+          function stop() {
             flvPlayer.unload()
             flvPlayer.detachMediaElement()
             flvPlayer.destroy()
-        }
-    </script>
-</body>
+          }
+          return {
+            url,
+            start,
+            stop,
+          }
+        },
+      }
 
+      const app = Vue.createApp(App)
+      app.use(ElementPlus)
+      app.mount('#app')
+    </script>
+  </body>
 </html>
