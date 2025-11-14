@@ -34,7 +34,14 @@
     <div id="app">
       <div class="flex-col gap-10px">
         <video id="myVideo" width="640" height="360" controls autoplay></video>
-        <el-input class="w-500px!" v-model="url"></el-input>
+        <el-select v-model="url" placeholder="请选择摄像头" style="width: 200px">
+          <el-option
+            v-for="camera in cameraList"
+            :key="camera.url"
+            :label="camera.name"
+            :value="camera.url"
+          ></el-option>
+        </el-select>
         <div>
           <el-button type="primary" @click="start">开始播放</el-button>
           <el-button type="danger" @click="stop">停止播放</el-button>
@@ -49,8 +56,17 @@
       const App = {
         setup() {
           // 视频流地址
-          const url = ref('rtsp://admin:jn123456@192.168.1.194:554/h264/ch1/main/av_stream')
-          //   const url = ref('rtsp://admin:Xchangtu..2018@192.168.1.52:554/LiveMedia/ch1/Media1')
+          const cameraList = [
+            {
+              name: '摄像头1',
+              url: '/live/cam1',
+            },
+            {
+              name: '摄像头2',
+              url: '/live/cam2',
+            },
+          ]
+          const url = ref(cameraList[0].url)
 
           //  FLV 播放器实例
           let flvPlayer = null
@@ -60,10 +76,13 @@
             // 创建
             flvPlayer = flvjs.createPlayer({
               type: 'flv',
-              url: '/stream?url=' + encodeURIComponent(url.value),
+              url: url.value,
               isLive: true,
               cors: true,
+              hasAudio: false,
               lazyLoad: false,
+              enableWorker: false,
+              stashInitialSize: 0,
               enableStashBuffer: false,
               autoCleanupSourceBuffer: true,
             })
@@ -90,6 +109,7 @@
             flvPlayer.destroy()
           }
           return {
+            cameraList,
             url,
             start,
             stop,

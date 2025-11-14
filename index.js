@@ -1,59 +1,103 @@
 const { spawn } = require('child_process');
 const express = require('express')
-const ffmpeg = require('fluent-ffmpeg')
 
-const app = express()
+const app = express();
 app.use(express.static(__dirname))
 
-app.get('/stream', (req, res) => {
-  if (!req.query.url) {
-    return res.status(400).send('Missing RTSP URL');
+// 多路流管理
+const streams = {
+  cam1: {
+    rtsp: 'rtsp://admin:jn123456@192.168.1.194:554/h264/ch1/main/av_stream',
+    clients: [],
+    ffmpeg: null
+  },
+  cam2: {
+    rtsp: 'rtsp://admin:Xchangtu..2018@192.168.1.52:554/LiveMedia/ch1/Media1',
+    clients: [],
+    ffmpeg: null
+  }
+};
+
+// 启动某路 FFmpeg
+function startFFmpeg(streamId) {
+  const info = streams[streamId];
+  if (!info || info.ffmpeg) return;
+
+  // 启动 FFmpeg 进程
+  info.ffmpeg = spawn('ffmpeg', [
+    '-rtsp_transport', 'tcp', // 使用 TCP 传输 RTSP
+    '-fflags', 'nobuffer', // 低延迟
+    '-flags', 'low_delay', // 低延迟
+    '-analyzeduration', '100000',// 尽可能快地启动
+    '-probesize', '500000', // 尽可能快地启动
+    '-i', info.rtsp, // 流地址
+    '-vcodec', 'copy', // 直接拷贝视频流，前提是摄像头输出的是 h264，否则需要改成 libx264 等编码器
+    '-acodec', '-an', // -an 可禁用音频，acc 音频编码
+    '-f', 'flv', // 输出格式为 flv
+    '-' // 输出到 stdout
+  ]);
+
+  info.ffmpeg.stdout.on('data', chunk => {
+    info.clients.forEach(c => c.write(chunk));
+  });
+
+  info.ffmpeg.stderr.on('data', () => { });
+
+  info.ffmpeg.on('start', (cmd) => {
+    console.log(`FFmpeg started for stream '${streamId}': ${cmd}`);
+  });
+
+  info.ffmpeg.on('close', () => {
+    info.ffmpeg = null;
+  });
+
+  info.ffmpeg.on('error', (err) => {
+    info.ffmpeg = null;
+    console.error(`FFmpeg error for stream '${streamId}': ${err}`);
+  });
+}
+
+// 停止无用户的流
+function stopFFmpegIfIdle(streamId) {
+  const info = streams[streamId];
+  if (info && info.clients.length === 0 && info.ffmpeg) {
+    info.ffmpeg.kill('SIGKILL');
+    info.ffmpeg = null;
+  }
+}
+
+// 路由：/live/:id 例如 /live/cam1
+app.get('/live/:id', (req, res) => {
+  // 获取流 ID
+  const streamId = req.params.id;
+  console.log(`Client connected to stream '${streamId}'`);
+
+  // 若此流不存在，返回 404
+  if (!streams[streamId]) {
+    res.status(404).send(`Stream '${streamId}' not registered`);
+    return;
   }
 
-  // 对 URL 解码，防止特殊字符问题
-  const url = decodeURIComponent(req.query.url);
-  console.log('拉流地址：', url)
+  res.writeHead(200, {
+    'Content-Type': 'video/x-flv',
+    'Connection': 'keep-alive',
+    'Access-Control-Allow-Origin': '*'
+  });
 
-  // 设置响应头
-  res.setHeader('Content-Type', 'video/x-flv');
+  const info = streams[streamId];
+  info.clients.push(res);
 
-  // 执行 ffmpeg 命令
-  const ffmpegProcess = ffmpeg(url)
-    .inputOptions([
-      '-rtsp_transport', 'tcp',           // 强制 TCP 拉流
-      '-timeout', '5000000',              // 微秒，超时设置
-      '-analyzeduration', '500000',    // 提前分析流
-      '-probesize', '500000',            // 分析缓冲区大小
-    ])
-    .outputOptions([
-      '-c:v libx264',                     // 视频编码
-      '-c:a aac',                         // 音频编码
-      '-f flv'                             // 输出 FLV 格式
-    ])
-    .on('start', cmd => {
-      console.log('FFmpeg 启动命令:', cmd);
-    })
-    .on('error', (err) => {
-      console.log('【Error】: ' + err)
-      if (!res.headersSent) {
-        res.status(500).end();
-      }
-    })
+  // 无 ffmpeg → 启动
+  if (!info.ffmpeg) startFFmpeg(streamId);
 
-  // 监听请求关闭事件，并停止ffmpeg命令
   req.on('close', () => {
-    console.log('客户端断开连接，停止拉流');
-    try {
-      ffmpegProcess.kill('SIGINT') // 停止ffmpeg命令
-    } catch (e) {
-      console.log('【Error】 while killing ffmpeg process:', e.message)
-    }
-  })
+    const index = info.clients.indexOf(res);
+    if (index !== -1) info.clients.splice(index, 1);
+    stopFFmpegIfIdle(streamId);
+  });
+});
 
-  // 使用管道将ffmpeg命令的输出重定向到response
-  ffmpegProcess.pipe(res, { end: true })
-})
-
+// 启动服务
 app.listen(8020, () => {
   // 自动打开浏览器
   // spawn('cmd', ['/c', 'start', 'http://localhost:8000'], {
@@ -62,5 +106,5 @@ app.listen(8020, () => {
     stdio: 'ignore'
   }).unref();
 
-  console.log('Server started: http://localhost:8020')
-})
+  console.log('Server started');
+});

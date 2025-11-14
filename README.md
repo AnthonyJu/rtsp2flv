@@ -1,4 +1,5 @@
 # RTSP to FLV
+延迟约1.5s内
 
 ## 1. Introduction
 后端nodejs使用ffmpeg将RTSP流转换为FLV流，然后前端使用flv.js播放FLV流。
